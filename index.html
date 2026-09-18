@@ -29,13 +29,11 @@ math{font-family:"Times New Roman",Georgia,serif}
 .step-number{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#F0F2F3;color:var(--muted);font:600 12px/1 ui-sans-serif,system-ui,sans-serif;transition:.18s ease}
 .sentence:hover .step-number,.sentence:focus-within .step-number{background:var(--green-soft);color:var(--green)}
 .sentence-copy{min-width:0;color:var(--ink)}
-.inline-formula{position:relative;min-width:0;width:100%;min-height:94px;display:grid;align-content:center;gap:10px;background:transparent;border:0;border-radius:10px;padding:12px 0;color:var(--green);text-align:right;cursor:pointer;font-family:inherit}
+.inline-formula{position:relative;min-width:0;width:100%;min-height:94px;display:grid;align-content:center;gap:10px;background:transparent;border:0;border-radius:10px;padding:12px 0;color:var(--green);text-align:right;font-family:inherit}
 .formula-viewport{position:relative;display:grid;grid-template-columns:minmax(0,1fr);min-width:0;overflow-x:auto;padding:22px 2px;font-size:clamp(16px,2.05vw,29px);scrollbar-width:thin}
 .formula-frame{grid-area:1/1;display:flex;justify-content:safe flex-end;align-items:center;min-width:0;width:100%;white-space:nowrap}
 .formula-frame math{color:var(--green);flex-shrink:0}
 .formula-from{visibility:hidden}
-.inline-formula:hover,.inline-formula:focus-visible{background:var(--green-soft)}
-.inline-formula:focus-visible{outline:2px solid var(--green);outline-offset:5px}
 .inline-formula.playing .formula-frame{visibility:hidden}
 .motion-layer{position:absolute;inset:0;pointer-events:none;color:var(--green)}
 .motion-token{position:absolute;display:block;transform-origin:0 0;white-space:nowrap;line-height:1;will-change:transform,opacity}
@@ -77,7 +75,8 @@ math{font-family:"Times New Roman",Georgia,serif}
 .problem-links a{display:flex;justify-content:space-between;gap:16px;border:0;padding:13px 10px}
 .problem-links a:hover,.problem-links a[aria-current="page"]{background:#F0F4FF;color:var(--blue)}
 .problem-links small{color:#A96320}
-.exercise-meta{display:flex;align-items:center;gap:8px;margin:24px 0 0;font:500 11px/1.4 ui-sans-serif,system-ui,sans-serif}
+.topic-tags{display:flex;flex-wrap:wrap;gap:8px}
+.exercise-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:24px 0 0;font:500 11px/1.4 ui-sans-serif,system-ui,sans-serif}
 .tag{border:1px solid var(--line);border-radius:5px;padding:4px 8px;color:#68717D;background:white}
 .difficulty{color:#9C6A11;background:#FFF5DB;border-color:#F5E8BB}
 .difficulty.hard{color:#B64B49;background:#FFF0EE;border-color:#F2D8D4}
@@ -130,7 +129,7 @@ math{font-family:"Times New Roman",Georgia,serif}
     </nav>
     <div class="lang"><button id="enBtn" class="active">EN</button><button id="esBtn">ES</button></div>
   </header>
-  <div class="exercise-meta"><span class="tag" id="topicTag">Antiderivatives</span><span class="tag difficulty" id="difficultyTag">Medium</span></div>
+  <div class="exercise-meta"><span id="topicTags" class="topic-tags"></span><span class="tag difficulty" id="difficultyTag">Medium</span></div>
   <div class="formula-stage">
     <div id="originalPanel">
       <div class="equation" id="originalEquation"></div>
@@ -370,6 +369,11 @@ function addInteractions(el,index){
  el.addEventListener('click',()=>{cancel();deepen(el,index)});
  el.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();cancel();deepen(el,index)}});
 }
+const exerciseTags={
+ 'separable':pair(['Antiderivatives','Differential equations','Separable ODEs','Initial-value problem','Substitution','Inverse trigonometric functions'],['Primitivas','Ecuaciones diferenciales','EDO separables','Problema de valor inicial','Sustitución','Funciones trigonométricas inversas']),
+ 'integration-by-parts':pair(['Antiderivatives','Repeated integration by parts','Polynomial × exponential','Product-rule verification'],['Primitivas','Integración por partes repetida','Polinomio × exponencial','Verificación con la regla del producto']),
+ 'partial-fractions':pair(['Rational integration','Partial fractions','Repeated linear factors','Irreducible quadratics','Coefficient matching','Quadratic reduction'],['Integración racional','Fracciones parciales','Factores lineales repetidos','Cuadráticos irreducibles','Comparación de coeficientes','Reducción cuadrática'])
+};
 const answers=new Map();
 let replayCleanups=[];
 function render(){
@@ -399,7 +403,8 @@ function render(){
   if(valid)a.href=exerciseURL(index);else a.removeAttribute('href');
   a.onclick=event=>{if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();if(valid)navigate(index)};
  }
- document.getElementById('topicTag').textContent=l.topic;
+ const tags=document.getElementById('topicTags');tags.replaceChildren();
+ t(exerciseTags[exercise.id]).forEach(label=>{const tag=document.createElement('span');tag.className='tag';tag.textContent=label;tags.append(tag)});
  const difficulty=document.getElementById('difficultyTag');difficulty.textContent=l[exercise.difficulty];difficulty.classList.toggle('hard',exercise.difficulty==='Hard');
  document.getElementById('originalEquation').innerHTML=exercise.original+exercise.condition;
  document.getElementById('practiceLabel').textContent=l.practice;
@@ -426,7 +431,7 @@ function render(){
   const number=document.createElement('span');number.className='step-number';number.textContent=index+1;number.setAttribute('aria-hidden','true');
   const exp=document.createElement('span');exp.className='expand';exp.tabIndex=0;exp.setAttribute('role','button');exp.setAttribute('aria-description',lang==='es'?'Pulsa para mostrar más detalles':'Press to show more detail');exp.textContent=t(step.text);
   const hint=document.createElement('p');hint.className='reflex';hint.hidden=true;hint.textContent=t(step.hint);copy.append(number,exp,hint);
-  const panel=document.createElement('button');panel.type='button';panel.className='inline-formula';panel.setAttribute('aria-label',`${l.replayAction} ${index+1}: ${t(step.operation)}`);
+  const panel=document.createElement('div');panel.className='inline-formula';panel.setAttribute('role','group');panel.setAttribute('aria-label',`${index+1}: ${t(step.operation)}`);
   const previous=index===0?exercise.original:exercise.steps[index-1].formula;
   panel.innerHTML=`<span class="formula-viewport"><span class="formula-frame formula-from" aria-hidden="true">${previous}</span><span class="formula-frame formula-to">${step.formula}</span></span>`;
   // Keep the formula itself readable to assistive technology, in addition to its replay action.

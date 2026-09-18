@@ -75,7 +75,9 @@ const EquationMotion = (() => {
 
   function attach(panel) {
     const viewport=panel.querySelector('.formula-viewport');
-    let animations=[],timer,layer;
+    let animations=[],timer,layer,loopTimer;
+    let visible=false,disposed=false;
+    const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
     const reset=()=>{
       clearTimeout(timer);
       animations.forEach(animation=>animation.cancel());animations=[];
@@ -83,7 +85,7 @@ const EquationMotion = (() => {
     };
     const play=()=>{
       reset();
-      if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+      if(motionPreference.matches||document.hidden||!visible||disposed)return;
       const from=measure(panel.querySelector('.formula-from'),viewport);
       const to=measure(panel.querySelector('.formula-to'),viewport);
       const plan=matchParts(from,to);
@@ -108,13 +110,29 @@ const EquationMotion = (() => {
       panel.classList.add('playing');
       timer=setTimeout(reset,duration);
     };
-    panel.addEventListener('mouseenter',play);
-    panel.addEventListener('mouseleave',reset);
-    panel.addEventListener('blur',reset);
-    panel.addEventListener('click',play);
-    // Changing exercises, resizing, or scrolling must not leave detached animations.
+    // 2.4 seconds of movement followed by 3.6 seconds to read the result.
+    const tick=()=>{
+      if(disposed||!visible||document.hidden||motionPreference.matches)return;
+      play();
+      loopTimer=setTimeout(tick,6000);
+    };
+    const synchronize=()=>{
+      clearTimeout(loopTimer);reset();
+      if(!disposed&&visible&&!document.hidden&&!motionPreference.matches)loopTimer=setTimeout(tick,1200);
+    };
+    const intersection=new IntersectionObserver(entries=>{
+      visible=entries[0].isIntersecting;
+      synchronize();
+    },{threshold:0});
+    intersection.observe(panel);
+    document.addEventListener('visibilitychange',synchronize);
+    motionPreference.addEventListener('change',synchronize);
     const observer=new ResizeObserver(()=>{if(panel.classList.contains('playing'))reset()});observer.observe(viewport);
-    return ()=>{reset();observer.disconnect()};
+    return ()=>{
+      disposed=true;clearTimeout(loopTimer);reset();observer.disconnect();intersection.disconnect();
+      document.removeEventListener('visibilitychange',synchronize);
+      motionPreference.removeEventListener('change',synchronize);
+    };
   }
   return {attach};
 })();
