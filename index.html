@@ -319,7 +319,8 @@ function exerciseURL(index){
 }
 function readRoute(){
  const id=new URLSearchParams(location.search).get('exercise');
- activeIndex=Math.max(0,exercises.findIndex(ex=>ex.id===id));
+ const requestedIndex=exercises.findIndex(ex=>ex.id===id);
+ activeIndex=requestedIndex>=0?requestedIndex:exercises.findIndex(ex=>ex.id==='partial-fractions');
  render();
 }
 function navigate(index){
