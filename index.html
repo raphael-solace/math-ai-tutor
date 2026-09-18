@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -127,7 +127,7 @@ math{font-family:"Times New Roman",Georgia,serif}
       <span class="nav-count" id="navCount">1 / 3</span>
       <a id="nextExercise" aria-label="Next exercise">›</a>
     </nav>
-    <div class="lang"><button id="enBtn" class="active">EN</button><button id="esBtn">ES</button></div>
+    <div class="lang"><button id="enBtn">EN</button><button id="esBtn" class="active">ES</button></div>
   </header>
   <div class="exercise-meta"><span id="topicTags" class="topic-tags"></span><span class="tag difficulty" id="difficultyTag">Medium</span></div>
   <div class="formula-stage">
@@ -302,7 +302,7 @@ const exercises=[{
  feedback:pair(['Repeated factors require all powers up to their multiplicity, not only the squared terms.','Correct. Use constants over the linear factors and linear numerators over both quadratic powers.','A logarithm works directly only when the numerator is proportional to the denominator’s derivative. That is not the case here.'],['Los factores repetidos requieren todas las potencias hasta su multiplicidad, no solo los cuadrados.','Correcto. Usa constantes sobre los factores lineales y numeradores lineales sobre ambas potencias del cuadrático.','Un logaritmo funciona directamente solo cuando el numerador es proporcional a la derivada del denominador. Aquí no ocurre.'])
 }];
 
-let lang='en';
+let lang='es';
 let activeIndex=0;
 let levels=[];
 const cache=new Map();
