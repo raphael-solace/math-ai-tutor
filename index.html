@@ -30,18 +30,17 @@ math{font-family:"Times New Roman",Georgia,serif}
 .sentence:hover .step-number,.sentence:focus-within .step-number{background:var(--green-soft);color:var(--green)}
 .sentence-copy{min-width:0;color:var(--ink)}
 .inline-formula{position:relative;min-width:0;width:100%;min-height:94px;display:grid;align-content:center;gap:10px;background:transparent;border:0;border-radius:10px;padding:12px 0;color:var(--green);text-align:right;cursor:pointer;font-family:inherit}
-.formula-viewport{position:relative;display:grid;grid-template-columns:minmax(0,1fr);min-width:0;overflow-x:auto;padding:5px 2px;font-size:clamp(16px,2.05vw,29px);scrollbar-width:thin}
+.formula-viewport{position:relative;display:grid;grid-template-columns:minmax(0,1fr);min-width:0;overflow-x:auto;padding:22px 2px;font-size:clamp(16px,2.05vw,29px);scrollbar-width:thin}
 .formula-frame{grid-area:1/1;display:flex;justify-content:safe flex-end;align-items:center;min-width:0;width:100%;white-space:nowrap}
 .formula-frame math{color:var(--green);flex-shrink:0}
 .formula-from{visibility:hidden}
-.formula-caption{font:500 10px/1.5 ui-sans-serif,system-ui,sans-serif;color:#6B8674;letter-spacing:.02em;min-height:15px}
 .inline-formula:hover,.inline-formula:focus-visible{background:var(--green-soft)}
 .inline-formula:focus-visible{outline:2px solid var(--green);outline-offset:5px}
-.inline-formula.playing .formula-from{visibility:visible;animation:stepFrom 2.2s both}
-.inline-formula.playing .formula-to{animation:stepTo 2.2s both}
-.inline-formula.playing .formula-caption{color:var(--green)}
-@keyframes stepFrom{0%,30%{opacity:1;transform:translateY(0)}48%,100%{opacity:0;transform:translateY(-12px)}}
-@keyframes stepTo{0%,36%{opacity:0;transform:translateY(14px)}63%,100%{opacity:1;transform:translateY(0)}}
+.inline-formula.playing .formula-frame{visibility:hidden}
+.motion-layer{position:absolute;inset:0;pointer-events:none;color:var(--green)}
+.motion-token{position:absolute;display:block;transform-origin:0 0;white-space:nowrap;line-height:1;will-change:transform,opacity}
+.motion-token math{color:inherit}
+.motion-bar{position:absolute;height:1px;background:currentColor;transform-origin:0 0;will-change:transform,opacity}
 .expand{position:relative;cursor:help;border-bottom:1px solid #BFC5CC;transition:border-color .18s ease,background .18s ease;box-decoration-break:clone;-webkit-box-decoration-break:clone}
 .expand:hover,.expand:focus-visible{border-bottom-color:var(--blue);background:#EEF3FF}
 .expand:focus-visible{outline:2px solid var(--blue);outline-offset:4px;border-radius:2px}
@@ -107,9 +106,9 @@ math{font-family:"Times New Roman",Georgia,serif}
  .exercise-meta{flex-wrap:wrap}.problem-name{margin-left:0;width:100%;margin-top:4px}
  .study-tools{flex-direction:column;gap:12px}.support{align-self:flex-end}.practice{width:100%}
  .sentence{grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px}.sentence-copy{position:relative;padding-left:30px}.step-number{position:absolute;left:0;top:2px}
- .formula-viewport{font-size:16px}.formula-caption{font-size:9px;text-align:left}.reflex{font-size:11px}.equation{overflow-x:auto;justify-content:safe center}
+ .formula-viewport{font-size:16px}.reflex{font-size:11px}.equation{overflow-x:auto;justify-content:safe center}
 }
-@media(prefers-reduced-motion:reduce){.inline-formula.playing .formula-from{visibility:hidden}.inline-formula.playing .formula-to{opacity:1}}
+
 
 </style>
 </head>
@@ -128,10 +127,9 @@ math{font-family:"Times New Roman",Georgia,serif}
     </nav>
     <div class="lang"><button id="enBtn" class="active">EN</button><button id="esBtn">ES</button></div>
   </header>
-  <div class="exercise-meta"><span class="tag" id="topicTag">Antiderivatives</span><span class="tag difficulty" id="difficultyTag">Medium</span><span class="problem-name" id="problemName"></span></div>
+  <div class="exercise-meta"><span class="tag" id="topicTag">Antiderivatives</span><span class="tag difficulty" id="difficultyTag">Medium</span></div>
   <div class="formula-stage">
     <div id="originalPanel">
-      <div class="formula-label" id="originalLabel">Original equation</div>
       <div class="equation" id="originalEquation"></div>
     </div>
   </div>
@@ -144,9 +142,9 @@ math{font-family:"Times New Roman",Georgia,serif}
   </div>
   <ol class="explanation" id="explanation" aria-label="Solution steps"></ol>
   <p class="exercise-domain" id="exerciseDomain"></p>
-  <div class="footer" id="footer"></div>
 </main>
 
+<script src="equation-motion.js"></script>
 <script>
 /*
   LOCAL AI PROXY
@@ -362,24 +360,9 @@ function addInteractions(el,index){
  el.addEventListener('click',()=>{cancel();deepen(el,index)});
  el.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();cancel();deepen(el,index)}});
 }
-function attachReplay(panel,step){
- let timer;
- const caption=panel.querySelector('.formula-caption');
- const reset=()=>{clearTimeout(timer);panel.classList.remove('playing');caption.textContent=labels[lang].replay};
- const play=()=>{
-  reset();
-  caption.textContent=t(step.operation);
-  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-  void panel.offsetWidth;
-  panel.classList.add('playing');
-  timer=setTimeout(()=>{panel.classList.remove('playing');caption.textContent=labels[lang].replay},2200);
- };
- panel.addEventListener('mouseenter',play);
- panel.addEventListener('mouseleave',reset);
- panel.addEventListener('blur',reset);
- panel.addEventListener('click',play);
-}
+let replayCleanups=[];
 function render(){
+ replayCleanups.forEach(cleanup=>cleanup());replayCleanups=[];
  const exercise=currentExercise(),l=labels[lang];
  levels=exercise.steps.map(()=>0);
  document.documentElement.lang=lang;
@@ -407,8 +390,6 @@ function render(){
  }
  document.getElementById('topicTag').textContent=l.topic;
  const difficulty=document.getElementById('difficultyTag');difficulty.textContent=l[exercise.difficulty];difficulty.classList.toggle('hard',exercise.difficulty==='Hard');
- document.getElementById('problemName').textContent=`${activeIndex+1}. ${t(exercise.title)}`;
- document.getElementById('originalLabel').textContent=UI[lang].originalLabel;
  document.getElementById('originalEquation').innerHTML=exercise.original+exercise.condition;
  document.getElementById('practiceLabel').textContent=l.practice;
  document.getElementById('practiceQuestion').textContent=t(exercise.question);
@@ -432,21 +413,18 @@ function render(){
   const copy=document.createElement('div');copy.className='sentence-copy';
   const number=document.createElement('span');number.className='step-number';number.textContent=index+1;number.setAttribute('aria-hidden','true');
   const exp=document.createElement('span');exp.className='expand';exp.tabIndex=0;exp.setAttribute('role','button');exp.setAttribute('aria-description',lang==='es'?'Pulsa para mostrar más detalles':'Press to show more detail');exp.textContent=t(step.text);
-  const hint=document.createElement('details');hint.className='reflex';
-  const summary=document.createElement('summary');summary.textContent=l.hint;
-  const hintText=document.createElement('p');hintText.textContent=t(step.hint);hint.append(summary,hintText);copy.append(number,exp,hint);
+  const hint=document.createElement('p');hint.className='reflex';hint.textContent=t(step.hint);copy.append(number,exp,hint);
   const panel=document.createElement('button');panel.type='button';panel.className='inline-formula';panel.setAttribute('aria-label',`${l.replayAction} ${index+1}: ${t(step.operation)}`);
   const previous=index===0?exercise.original:exercise.steps[index-1].formula;
-  panel.innerHTML=`<span class="formula-viewport"><span class="formula-frame formula-from" aria-hidden="true">${previous}</span><span class="formula-frame formula-to">${step.formula}</span></span><span class="formula-caption">${l.replay}</span>`;
+  panel.innerHTML=`<span class="formula-viewport"><span class="formula-frame formula-from" aria-hidden="true">${previous}</span><span class="formula-frame formula-to">${step.formula}</span></span>`;
   // Keep the formula itself readable to assistive technology, in addition to its replay action.
   panel.setAttribute('aria-describedby',`formula-${index}`);panel.querySelector('.formula-to').id=`formula-${index}`;
-  row.append(copy,panel);root.append(row);addInteractions(exp,index);attachReplay(panel,step);
+  row.append(copy,panel);root.append(row);addInteractions(exp,index);replayCleanups.push(EquationMotion.attach(panel));
  });
  document.getElementById('exerciseDomain').textContent=t(exercise.domain);
- document.getElementById('footer').textContent=l.footer;
  applySupport();
 }
-function applySupport(){document.querySelectorAll('.reflex').forEach(hint=>hint.open=document.getElementById('support').value==='guided')}
+function applySupport(){document.querySelectorAll('.reflex').forEach(hint=>hint.hidden=document.getElementById('support').value!=='guided')}
 document.getElementById('support').addEventListener('change',applySupport);
 document.getElementById('enBtn').addEventListener('click',()=>{lang='en';render()});
 document.getElementById('esBtn').addEventListener('click',()=>{lang='es';render()});
