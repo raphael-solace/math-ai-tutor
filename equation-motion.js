@@ -1,7 +1,7 @@
 /* Animate MathML parts in their measured layout, preserving matching subexpressions. */
 const EquationMotion = (() => {
   const leafSelector = 'mi, mn, mo, mtext';
-  const duration = 2400;
+  const duration = 7200;
   const signature = node => node.outerHTML.replace(/\s+/g, ' ').replace(/> </g, '><').trim();
   const tokenKey = node => `${node.localName}:${node.textContent.trim()}`;
 
@@ -110,11 +110,11 @@ const EquationMotion = (() => {
       panel.classList.add('playing');
       timer=setTimeout(reset,duration);
     };
-    // 2.4 seconds of movement followed by 3.6 seconds to read the result.
+    // 7.2 seconds of movement followed by 3.6 seconds to read the result.
     const tick=()=>{
       if(disposed||!visible||document.hidden||motionPreference.matches)return;
       play();
-      loopTimer=setTimeout(tick,6000);
+      loopTimer=setTimeout(tick,duration+3600);
     };
     const synchronize=()=>{
       clearTimeout(loopTimer);reset();
