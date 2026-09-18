@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matemáticas en Capas</title>
+<script>
+const destination = new URL("./", location.href);
+destination.search = location.search;
+destination.hash = location.hash;
+location.replace(destination.href);
+</script>
+</head>
+<body><p><a href="./">Open Matemáticas en Capas</a></p></body>
+</html>

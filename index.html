@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Matemáticas en Capas</title>
+<style>
+:root{--blue:#245BFF;--green:#168344;--ink:#111214;--muted:#787F89;--paper:#FBFBFA;--green-soft:#ECF8F0;--line:#E3E6E9;--hover-delay:500ms}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--paper);color:var(--ink)}
+body{font-family:Georgia,"Times New Roman",serif}
+.page{width:100%;padding:24px clamp(18px,3.5vw,64px) 36px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:18px;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+.brand{font-size:12px;font-weight:750;letter-spacing:.14em;text-transform:uppercase;color:#6C7179}
+.lang{display:flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:999px;background:#fff}
+.lang button{border:0;background:transparent;color:#777D86;border-radius:999px;padding:8px 12px;font:650 12px/1 ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+.lang button.active{background:var(--ink);color:#fff}
+.lang button:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.formula-stage{width:100%;padding:clamp(48px,6vw,88px) 0 clamp(42px,5vw,72px);text-align:center}
+.formula-label{color:var(--blue);font:700 10px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.17em;text-transform:uppercase;margin-bottom:24px}
+.equation{display:flex;justify-content:center;align-items:center;gap:clamp(20px,4vw,56px);color:var(--blue);font-size:clamp(25px,3.5vw,46px);line-height:1.4;white-space:nowrap}
+.equation>math,.condition{flex:none}
+.condition{display:flex;align-items:center;gap:clamp(20px,4vw,56px);font-size:.76em}
+.condition::before{content:"";height:32px;width:1px;background:#D5DFFF}
+math{font-family:"Times New Roman",Georgia,serif}
+.equation math{color:var(--blue)}
+.explanation{margin:0;padding:0;list-style:none;border-top:1px solid var(--line);font-size:clamp(22px,2.3vw,32px);line-height:1.5;letter-spacing:-.023em}
+.sentence{display:grid;grid-template-columns:40px minmax(0,2fr) minmax(0,1fr);gap:clamp(16px,2.5vw,36px);align-items:center;width:100%;min-height:124px;padding:26px 0;border-bottom:1px solid var(--line);transition:background .18s ease}
+.step-number{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#F0F2F3;color:var(--muted);font:600 12px/1 ui-sans-serif,system-ui,sans-serif;transition:.18s ease}
+.sentence:hover .step-number,.sentence:focus-within .step-number{background:var(--green-soft);color:var(--green)}
+.sentence-copy{min-width:0;color:var(--ink)}
+.inline-formula{position:relative;min-width:0;width:100%;min-height:94px;display:grid;align-content:center;gap:10px;background:transparent;border:0;border-radius:10px;padding:12px 0;color:var(--green);text-align:right;cursor:pointer;font-family:inherit}
+.formula-viewport{position:relative;display:grid;grid-template-columns:minmax(0,1fr);min-width:0;overflow-x:auto;padding:5px 2px;font-size:clamp(16px,2.05vw,29px);scrollbar-width:thin}
+.formula-frame{grid-area:1/1;display:flex;justify-content:safe flex-end;align-items:center;min-width:0;width:100%;white-space:nowrap}
+.formula-frame math{color:var(--green);flex-shrink:0}
+.formula-from{visibility:hidden}
+.formula-caption{font:500 10px/1.5 ui-sans-serif,system-ui,sans-serif;color:#6B8674;letter-spacing:.02em;min-height:15px}
+.inline-formula:hover,.inline-formula:focus-visible{background:var(--green-soft)}
+.inline-formula:focus-visible{outline:2px solid var(--green);outline-offset:5px}
+.inline-formula.playing .formula-from{visibility:visible;animation:stepFrom 2.2s both}
+.inline-formula.playing .formula-to{animation:stepTo 2.2s both}
+.inline-formula.playing .formula-caption{color:var(--green)}
+@keyframes stepFrom{0%,30%{opacity:1;transform:translateY(0)}48%,100%{opacity:0;transform:translateY(-12px)}}
+@keyframes stepTo{0%,36%{opacity:0;transform:translateY(14px)}63%,100%{opacity:1;transform:translateY(0)}}
+.expand{position:relative;cursor:help;border-bottom:1px solid #BFC5CC;transition:border-color .18s ease,background .18s ease;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.expand:hover,.expand:focus-visible{border-bottom-color:var(--blue);background:#EEF3FF}
+.expand:focus-visible{outline:2px solid var(--blue);outline-offset:4px;border-radius:2px}
+.expand.waiting::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--blue);transform-origin:left center;animation:hoverProgress var(--hover-delay) linear forwards}
+@keyframes hoverProgress{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.expand.revealing{animation:revealGlow .3s ease}
+@keyframes revealGlow{from{background:#E7EEFF}to{background:transparent}}
+.expand[data-complete="true"]{border-bottom-color:transparent;cursor:text}
+.footer{margin-top:24px;color:var(--muted);font:400 12px/1.7 ui-sans-serif,system-ui,sans-serif}
+@media(max-width:700px){
+  .page{padding:20px 18px 28px}
+  .brand{font-size:10px;letter-spacing:.1em}
+  .formula-stage{padding:48px 0 40px}
+  .equation{font-size:clamp(23px,5vw,34px);gap:20px}
+  .condition{gap:20px}
+  .condition::before{height:24px}
+  .explanation{font-size:clamp(17px,3vw,22px)}
+  .sentence{grid-template-columns:24px minmax(0,2fr) minmax(0,1fr);gap:12px;min-height:112px;padding:22px 0}
+  .step-number{width:24px;height:24px;font-size:10px}
+  .formula-viewport{font-size:16px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+.topbar{flex-wrap:wrap;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.exercise-nav{display:flex;align-items:center;gap:8px}
+.exercise-nav a,.exercise-nav button,.practice button,.support select{font:500 12px/1.4 ui-sans-serif,system-ui,sans-serif;color:var(--ink);border:1px solid var(--line);border-radius:7px;background:white;text-decoration:none;padding:9px 12px;cursor:pointer}
+.exercise-nav a[aria-disabled="true"]{opacity:.3;pointer-events:none}
+.exercise-nav a:focus-visible,.exercise-nav button:focus-visible,.practice button:focus-visible,summary:focus-visible{outline:2px solid var(--blue);outline-offset:4px}
+.nav-count{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;padding:0 6px}
+.problem-menu{position:relative}
+.problem-menu summary{list-style:none;cursor:pointer;font-size:12px;font-weight:600;padding:9px 12px;border:1px solid var(--line);border-radius:7px;background:#fff}
+.problem-menu summary::-webkit-details-marker{display:none}
+.problem-links{position:absolute;left:50%;transform:translateX(-50%);top:44px;width:310px;padding:7px;background:white;border:1px solid var(--line);box-shadow:0 12px 40px #17223A14;border-radius:12px;z-index:5}
+.problem-links a{display:flex;justify-content:space-between;gap:16px;border:0;padding:13px 10px}
+.problem-links a:hover,.problem-links a[aria-current="page"]{background:#F0F4FF;color:var(--blue)}
+.problem-links small{color:#A96320}
+.exercise-meta{display:flex;align-items:center;gap:8px;margin:24px 0 0;font:500 11px/1.4 ui-sans-serif,system-ui,sans-serif}
+.tag{border:1px solid var(--line);border-radius:5px;padding:4px 8px;color:#68717D;background:white}
+.difficulty{color:#9C6A11;background:#FFF5DB;border-color:#F5E8BB}
+.difficulty.hard{color:#B64B49;background:#FFF0EE;border-color:#F2D8D4}
+.problem-name{margin-left:auto;color:var(--muted)}
+.formula-stage{padding:40px 0 38px}
+.study-tools{display:flex;align-items:start;justify-content:space-between;gap:24px;margin:0 0 24px;font-family:ui-sans-serif,system-ui,sans-serif}
+.practice{max-width:720px;flex:1;border-left:2px solid #DCE5FF;padding:8px 16px;font-size:13px;color:#657083}
+.practice summary{cursor:pointer;color:var(--ink);font-weight:500}
+.practice-body{padding:12px 0 2px}
+.practice-question{margin:0 0 12px;color:var(--ink);line-height:1.6}
+.choices{display:flex;flex-wrap:wrap;gap:8px}
+.practice button:hover{border-color:var(--blue)}
+.practice button[aria-pressed="true"]{border-color:var(--blue);background:#EEF3FF}
+.practice-feedback{line-height:1.7;margin:12px 0 0;color:#526078}
+.practice-feedback:empty{display:none}
+.support{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:8px;white-space:nowrap;padding-top:6px}
+.support select{font-size:11px;padding:7px 8px}
+.reflex{margin-top:12px;font:400 12px/1.7 ui-sans-serif,system-ui,sans-serif;letter-spacing:0;color:#687382;max-width:620px}
+.reflex summary{display:inline;cursor:pointer;font-weight:500;color:#687382;border-bottom:1px dashed #CBD0D7}
+.reflex p{margin:8px 0 0}
+.reflex strong{font-weight:600;color:#414D5C}
+.exercise-domain{font:400 11px/1.6 ui-sans-serif,system-ui,sans-serif;color:var(--muted);margin:20px 0 0}
+@media(min-width:701px){.sentence{grid-template-columns:minmax(0,2fr) minmax(0,1fr);column-gap:28px}.sentence-copy{position:relative;padding-left:56px}.step-number{position:absolute;left:0;top:7px}}
+@media(max-width:700px){
+ .topbar{gap:16px}.exercise-nav{order:3;width:100%;justify-content:center}.problem-menu{flex:1;text-align:center}.problem-links{max-width:calc(100vw - 36px)}
+ .exercise-meta{flex-wrap:wrap}.problem-name{margin-left:0;width:100%;margin-top:4px}
+ .study-tools{flex-direction:column;gap:12px}.support{align-self:flex-end}.practice{width:100%}
+ .sentence{grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px}.sentence-copy{position:relative;padding-left:30px}.step-number{position:absolute;left:0;top:2px}
+ .formula-viewport{font-size:16px}.formula-caption{font-size:9px;text-align:left}.reflex{font-size:11px}.equation{overflow-x:auto;justify-content:safe center}
+}
+@media(prefers-reduced-motion:reduce){.inline-formula.playing .formula-from{visibility:hidden}.inline-formula.playing .formula-to{opacity:1}}
+
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="topbar">
+    <div class="brand">Matemáticas en Capas</div>
+    <nav class="exercise-nav" aria-label="Exercise navigation">
+      <a id="prevExercise" aria-label="Previous exercise">‹</a>
+      <details class="problem-menu" id="problemMenu">
+        <summary id="problemListLabel">☷ &nbsp; Problem list</summary>
+        <div class="problem-links" id="problemLinks"></div>
+      </details>
+      <span class="nav-count" id="navCount">1 / 3</span>
+      <a id="nextExercise" aria-label="Next exercise">›</a>
+    </nav>
+    <div class="lang"><button id="enBtn" class="active">EN</button><button id="esBtn">ES</button></div>
+  </header>
+  <div class="exercise-meta"><span class="tag" id="topicTag">Antiderivatives</span><span class="tag difficulty" id="difficultyTag">Medium</span><span class="problem-name" id="problemName"></span></div>
+  <div class="formula-stage">
+    <div id="originalPanel">
+      <div class="formula-label" id="originalLabel">Original equation</div>
+      <div class="equation" id="originalEquation"></div>
+    </div>
+  </div>
+  <div class="study-tools">
+    <details class="practice" id="practice">
+      <summary id="practiceLabel">Before you look: choose the first move</summary>
+      <div class="practice-body"><p class="practice-question" id="practiceQuestion"></p><div class="choices" id="choices"></div><p class="practice-feedback" id="practiceFeedback" aria-live="polite"></p></div>
+    </details>
+    <label class="support"><span id="supportLabel">Support</span><select id="support"><option value="concise">On demand</option><option value="guided">Show pattern hints</option></select></label>
+  </div>
+  <ol class="explanation" id="explanation" aria-label="Solution steps"></ol>
+  <p class="exercise-domain" id="exerciseDomain"></p>
+  <div class="footer" id="footer"></div>
+</main>
+
+<script>
+/*
+  LOCAL AI PROXY
+  OpenAI-compatible endpoint by default:
+  http://localhost:8787/v1/chat/completions
+
+  Override without editing the file:
+  ?proxy=http://localhost:YOUR_PORT/v1/chat/completions
+*/
+const configuredProxy = new URLSearchParams(location.search).get("proxy");
+const isLocalPreview = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
+const proxyEndpoint = configuredProxy || (isLocalPreview ? "http://localhost:8787/v1/chat/completions" : null);
+
+const UI = {
+  en:{
+    originalLabel:"Original equation",
+    stepLabel:"Solution so far",
+    footer:"The green derivation is always visible. Hover over an underlined phrase for half a second to expand only that explanation.",
+    starts:{separate:"First, we ",integrate:"Then we ",solve:"Next we ",initial:"After that, we ",result:"This gives "},
+    fallback:{
+      separate:["separate the variables","separate the variables, placing every y-dependent factor on the left and every x-dependent factor on the right","separate the variables to obtain dy/(1+y²) = [x/(1+x²)] dx","separate the variables by dividing by 1+y² and multiplying by dx, so each side depends on only one variable: dy/(1+y²) = [x/(1+x²)] dx"],
+      integrate:["integrate both sides","integrate both sides using the standard antiderivatives of 1/(1+y²) and x/(1+x²)","integrate to obtain arctan(y) = ½ ln(1+x²) + C","integrate carefully: ∫dy/(1+y²)=arctan(y), while ∫x/(1+x²)dx = ½ln(1+x²), because d(1+x²)/dx = 2x"],
+      solve:["solve explicitly for y","solve explicitly for y by applying the tangent function to both sides","apply tangent to obtain y = tan(½ ln(1+x²) + C)","apply tangent because tan and arctan are inverse functions on the relevant branch, giving y = tan(½ ln(1+x²) + C)"],
+      initial:["use the initial condition","use y(0)=1 to determine the integration constant","substitute x=0 and y=1, which gives C = π/4","substitute the initial condition into arctan(y)=½ln(1+x²)+C: arctan(1)=π/4 and ln(1)=0, so C=π/4"],
+      result:["the final solution","the final solution y(x) = tan(½ ln(1+x²) + π/4)","the final solution y(x) = tan(½ ln(1+x²) + π/4), which satisfies y(0)=1","the final solution y(x) = tan(½ ln(1+x²) + π/4); differentiating it gives x(1+y²)/(1+x²), so it satisfies both the differential equation and the initial condition"]
+    }
+  },
+  es:{
+    originalLabel:"Ecuación original",
+    stepLabel:"Solución hasta este paso",
+    footer:"La derivación en verde siempre está visible. Mantén el cursor medio segundo sobre una frase subrayada para ampliar solo esa explicación.",
+    starts:{separate:"Empezamos por ",integrate:"Después vamos a ",solve:"A continuación vamos a ",initial:"Luego vamos a ",result:"Esto nos da "},
+    fallback:{
+      separate:["separar las variables","separar las variables, colocando todos los factores que dependen de y a la izquierda y los que dependen de x a la derecha","separar las variables para obtener dy/(1+y²) = [x/(1+x²)] dx","separar las variables dividiendo por 1+y² y multiplicando por dx, de modo que cada lado dependa de una sola variable: dy/(1+y²) = [x/(1+x²)] dx"],
+      integrate:["integrar ambos lados","integrar ambos lados usando las primitivas conocidas de 1/(1+y²) y x/(1+x²)","integrar para obtener arctan(y) = ½ ln(1+x²) + C","integrar con cuidado: ∫dy/(1+y²)=arctan(y), mientras que ∫x/(1+x²)dx = ½ln(1+x²), porque d(1+x²)/dx = 2x"],
+      solve:["despejar y","despejar y aplicando la función tangente a ambos lados","aplicar la tangente para obtener y = tan(½ ln(1+x²) + C)","aplicar la tangente porque tan y arctan son funciones inversas en la rama correspondiente, obteniendo y = tan(½ ln(1+x²) + C)"],
+      initial:["usar la condición inicial","usar y(0)=1 para determinar la constante de integración","sustituir x=0 e y=1, lo que da C = π/4","sustituir la condición inicial en arctan(y)=½ln(1+x²)+C: arctan(1)=π/4 y ln(1)=0, por lo que C=π/4"],
+      result:["la solución final","la solución final y(x) = tan(½ ln(1+x²) + π/4)","la solución final y(x) = tan(½ ln(1+x²) + π/4), que satisface y(0)=1","la solución final y(x) = tan(½ ln(1+x²) + π/4); al derivarla se obtiene x(1+y²)/(1+x²), por lo que satisface tanto la ecuación diferencial como la condición inicial"]
+    }
+  }
+};
+
+const order = ["separate","integrate","solve","initial","result"];
+
+const HOVER_DELAY = 500;
+document.documentElement.style.setProperty("--hover-delay", `${HOVER_DELAY}ms`);
+
+const stepFormulas = {
+  separate: `<math>
+    <mfrac><mrow><mi>d</mi><mi>y</mi></mrow><mrow><mn>1</mn><mo>+</mo><msup><mi>y</mi><mn>2</mn></msup></mrow></mfrac>
+    <mo>=</mo>
+    <mfrac><mrow><mi>x</mi><mi>d</mi><mi>x</mi></mrow><mrow><mn>1</mn><mo>+</mo><msup><mi>x</mi><mn>2</mn></msup></mrow></mfrac>
+  </math>`,
+  integrate: `<math>
+    <mi>arctan</mi><mo>(</mo><mi>y</mi><mo>)</mo>
+    <mo>=</mo>
+    <mfrac><mn>1</mn><mn>2</mn></mfrac>
+    <mi>ln</mi><mo>(</mo><mn>1</mn><mo>+</mo><msup><mi>x</mi><mn>2</mn></msup><mo>)</mo>
+    <mo>+</mo><mi>C</mi>
+  </math>`,
+  solve: `<math>
+    <mi>y</mi><mo>=</mo>
+    <mi>tan</mi><mo>(</mo>
+    <mfrac><mn>1</mn><mn>2</mn></mfrac>
+    <mi>ln</mi><mo>(</mo><mn>1</mn><mo>+</mo><msup><mi>x</mi><mn>2</mn></msup><mo>)</mo>
+    <mo>+</mo><mi>C</mi><mo>)</mo>
+  </math>`,
+  initial: `<math>
+    <mi>C</mi><mo>=</mo><mfrac><mi>π</mi><mn>4</mn></mfrac>
+  </math>`,
+  result: `<math>
+    <mi>y</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>=</mo>
+    <mi>tan</mi><mo>(</mo>
+    <mfrac><mn>1</mn><mn>2</mn></mfrac>
+    <mi>ln</mi><mo>(</mo><mn>1</mn><mo>+</mo><msup><mi>x</mi><mn>2</mn></msup><mo>)</mo>
+    <mo>+</mo><mfrac><mi>π</mi><mn>4</mn></mfrac><mo>)</mo>
+  </math>`
+};
+
+/* EXERCISES: all steps and hints work offline. The optional local proxy can elaborate them. */
+const originalMath = `<math><mfrac><mrow><mi>d</mi><mi>y</mi></mrow><mrow><mi>d</mi><mi>x</mi></mrow></mfrac><mo>=</mo><mfrac><mrow><mi>x</mi><mo>(</mo><mn>1</mn><mo>+</mo><msup><mi>y</mi><mn>2</mn></msup><mo>)</mo></mrow><mrow><mn>1</mn><mo>+</mo><msup><mi>x</mi><mn>2</mn></msup></mrow></mfrac></math>`;
+const initialMath = `<div class="condition"><math><mi>y</mi><mo>(</mo><mn>0</mn><mo>)</mo><mo>=</mo><mn>1</mn></math></div>`;
+const pair = (en,es)=>({en,es});
+// Small MathML helpers keep the new exercises dependency-free and accessible.
+const frac=(a,b)=>`<mfrac><mrow>${a}</mrow><mrow>${b}</mrow></mfrac>`;
+const pow=(a,b)=>`<msup><mrow>${a}</mrow><mrow>${b}</mrow></msup>`;
+const x='<mi>x</mi>', e='<mi>e</mi>', dx='<mi>d</mi><mi>x</mi>', C='<mi>C</mi>';
+const n=v=>`<mn>${v}</mn>`, op=v=>`<mo>${v}</mo>`, name=v=>`<mi>${v}</mi>`;
+const eq=op('='), plus=op('+'), minus=op('−'), xp=pow(x,n(2)), ex=pow(e,x);
+const wrap=v=>`<math><mrow>${v}</mrow></math>`;
+const integral=v=>op('∫')+v+dx;
+const par=v=>op('(')+v+op(')');
+const logabs=v=>name('ln')+op('|')+v+op('|');
+const hardParts = [
+ wrap(name('u')+eq+xp+op(',')+name('dv')+eq+ex+dx),
+ wrap(name('I')+eq+xp+ex+minus+n(2)+integral(x+ex)),
+ wrap(integral(x+ex)+eq+x+ex+minus+ex),
+ wrap(name('I')+eq+xp+ex+minus+n(2)+par(x+ex+minus+ex)),
+ wrap(name('I')+eq+ex+par(xp+minus+n(2)+x+plus+n(2))+plus+C)
+];
+const rational=frac(n(2)+x+plus+n(3),xp+plus+x+minus+n(2));
+const hardFractions=[
+ wrap(xp+plus+x+minus+n(2)+eq+par(x+minus+n(1))+par(x+plus+n(2))),
+ wrap(rational+eq+frac(name('A'),x+minus+n(1))+plus+frac(name('B'),x+plus+n(2))),
+ wrap(name('A')+eq+frac(n(5),n(3))+op(',')+name('B')+eq+frac(n(1),n(3))),
+ wrap(name('I')+eq+frac(n(5),n(3))+integral(frac(n(1),x+minus+n(1)))+plus+frac(n(1),n(3))+integral(frac(n(1),x+plus+n(2)))),
+ wrap(name('I')+eq+frac(n(5),n(3))+logabs(x+minus+n(1))+plus+frac(n(1),n(3))+logabs(x+plus+n(2))+plus+C)
+];
+const mediumHints=[
+ pair('A product of a function of x and a function of y suggests separation. Group each variable with its differential.','Un producto de una función de x y otra de y sugiere separar variables. Agrupa cada variable con su diferencial.'),
+ pair('Recognize 1/(1+y²) as an arctangent derivative. For x/(1+x²), the numerator is half the derivative of the denominator.','Reconoce 1/(1+y²) como la derivada de la arcotangente. En x/(1+x²), el numerador es la mitad de la derivada del denominador.'),
+ pair('To undo arctan, apply tan to the entire right-hand side. Keep the integration constant inside the parentheses.','Para deshacer arctan, aplica tan a todo el lado derecho. Mantén la constante de integración dentro del paréntesis.'),
+ pair('An initial value selects one member of the family. Use the arctan equation to avoid ambiguity between tangent branches.','Un valor inicial selecciona un miembro de la familia. Usa la ecuación con arctan para evitar ambigüedad entre las ramas de la tangente.'),
+ pair('Check both promises: differentiating must recover the differential equation, and substituting x=0 must give y=1.','Comprueba ambas condiciones: al derivar debes recuperar la ecuación diferencial, y al sustituir x=0 debes obtener y=1.')
+];
+const exercises=[{
+ id:'separable',title:pair('Separate, integrate, solve','Separar, integrar, resolver'),difficulty:'Medium',original:originalMath,condition:initialMath,
+ domain:pair('Valid on the interval containing 0: |x| < √(e^(π/2) − 1), before the first tangent pole.','Válida en el intervalo que contiene 0: |x| < √(e^(π/2) − 1), antes del primer polo de la tangente.'),
+ steps:order.map((key,i)=>({formula:stepFormulas[key],text:pair(UI.en.starts[key]+UI.en.fallback[key][0]+'.',UI.es.starts[key]+UI.es.fallback[key][0]+'.'),details:pair(UI.en.fallback[key].slice(1).map(t=>UI.en.starts[key]+t+'.'),UI.es.fallback[key].slice(1).map(t=>UI.es.starts[key]+t+'.')),hint:mediumHints[i],operation:pair(['Separate variables','Integrate both sides','Apply tangent','Set x = 0, y = 1','Substitute C = π/4'][i],['Separar variables','Integrar ambos lados','Aplicar la tangente','Sustituir x = 0, y = 1','Sustituir C = π/4'][i])})),
+ question:pair('What feature tells you which method to try first?','¿Qué característica te indica qué método probar primero?'),
+ choices:pair(['The x and y factors can be separated','A product always needs integration by parts','The denominator means partial fractions'],['Los factores de x e y se pueden separar','Un producto siempre requiere integración por partes','El denominador exige fracciones parciales']),answer:0,
+ feedback:pair(['Exactly. Look for y′ = f(x)g(y), then separate before integrating. Next, try spotting both antiderivatives without opening a hint.','Integration by parts is for integrals of products. Here, first notice that y′ factors into a function of x times a function of y.','A denominator alone does not imply partial fractions. First group the y terms with dy and the x terms with dx.'],['Exacto. Busca y′ = f(x)g(y) y separa antes de integrar. Después, intenta reconocer ambas primitivas sin abrir una pista.','La integración por partes sirve para integrales de productos. Aquí, observa primero que y′ es una función de x por una función de y.','Un denominador no implica fracciones parciales. Primero agrupa los términos de y con dy y los de x con dx.'])
+},{
+ id:'integration-by-parts',title:pair('Repeated integration by parts','Integración por partes repetida'),difficulty:'Hard',original:wrap(name('I')+eq+integral(xp+ex)),condition:'',
+ domain:pair('Valid for all real x. Differentiate eˣ(x² − 2x + 2) to recover x²eˣ.','Válida para todo x real. Deriva eˣ(x² − 2x + 2) para recuperar x²eˣ.'),
+ steps:[
+  {text:pair('Choose the polynomial as u.','Elegimos el polinomio como u.'),details:pair(['Set u = x² and dv = eˣ dx, so du = 2x dx and v = eˣ.','Differentiation lowers the degree of x², while eˣ is unchanged by integration. This choice makes the next integral simpler.'],['Tomamos u = x² y dv = eˣ dx; entonces du = 2x dx y v = eˣ.','La derivación reduce el grado de x², mientras que la integral de eˣ sigue siendo eˣ. Así simplificamos la siguiente integral.']),hint:pair('A polynomial times an exponential is a cue for integration by parts. Differentiate the part that gets simpler.','Un polinomio por una exponencial sugiere integración por partes. Deriva el factor que se simplifica.'),operation:pair('Choose u and dv','Elegir u y dv')},
+  {text:pair('Apply integration by parts once.','Aplicamos integración por partes una vez.'),details:pair(['Use ∫u dv = uv − ∫v du to get x²eˣ − 2∫xeˣ dx.','The minus sign belongs to the entire remaining integral. The polynomial degree has dropped from two to one.'],['Usamos ∫u dv = uv − ∫v du para obtener x²eˣ − 2∫xeˣ dx.','El signo menos afecta a toda la integral restante. El grado del polinomio ha bajado de dos a uno.']),hint:pair('Track progress: the remaining polynomial should have a lower degree. Keep the minus sign outside the integral.','Comprueba el progreso: el polinomio restante debe tener menor grado. Mantén el signo menos fuera de la integral.'),operation:pair('Use ∫u dv = uv − ∫v du','Usar ∫u dv = uv − ∫v du')},
+  {text:pair('Repeat for the remaining integral.','Repetimos con la integral restante.'),details:pair(['For ∫xeˣ dx, choose u = x and dv = eˣ dx. This gives xeˣ − ∫eˣ dx = xeˣ − eˣ.','Now du = dx, so no polynomial remains in the last integral. We collect all integration constants into one C at the end.'],['Para ∫xeˣ dx, elegimos u = x y dv = eˣ dx. Obtenemos xeˣ − ∫eˣ dx = xeˣ − eˣ.','Ahora du = dx, así que no queda ningún polinomio en la última integral. Agrupamos las constantes en una sola C al final.']),hint:pair('When the same pattern remains, reuse the method. Stop when the leftover integral is immediate.','Si el patrón se repite, reutiliza el método. Para cuando la integral restante sea inmediata.'),operation:pair('Evaluate ∫xeˣ dx','Calcular ∫xeˣ dx')},
+  {text:pair('Substitute back, keeping the parentheses.','Sustituimos sin quitar los paréntesis.'),details:pair(['Replace ∫xeˣ dx in the earlier equation with xeˣ − eˣ.','The factor −2 multiplies both terms: −2(xeˣ − eˣ) = −2xeˣ + 2eˣ.'],['Sustituimos ∫xeˣ dx en la ecuación anterior por xeˣ − eˣ.','El factor −2 multiplica ambos términos: −2(xeˣ − eˣ) = −2xeˣ + 2eˣ.']),hint:pair('A common slip is losing the second minus sign. Substitute with parentheses before expanding.','Un error frecuente es perder el segundo signo menos. Sustituye con paréntesis antes de desarrollar.'),operation:pair('Substitute into step 2','Sustituir en el paso 2')},
+  {text:pair('Factor, add C, and check by differentiating.','Factorizamos, añadimos C y comprobamos derivando.'),details:pair(['Factor out eˣ to get eˣ(x² − 2x + 2) + C.','The product rule gives eˣ(x² − 2x + 2) + eˣ(2x − 2) = x²eˣ. The extra terms cancel.'],['Sacamos eˣ como factor común: eˣ(x² − 2x + 2) + C.','La regla del producto da eˣ(x² − 2x + 2) + eˣ(2x − 2) = x²eˣ. Los términos extra se cancelan.']),hint:pair('Differentiate your answer. Cancellation is a stronger check than whether the result looks familiar.','Deriva tu respuesta. La cancelación de términos es una comprobación más fiable que reconocer la forma.'),operation:pair('Factor eˣ and add C','Factorizar eˣ y añadir C')}
+ ].map((step,i)=>({...step,formula:hardParts[i]})),
+ question:pair('Which choice makes the next integral simpler?','¿Qué elección simplifica la siguiente integral?'),choices:pair(['u = eˣ, dv = x² dx','u = x², dv = eˣ dx','u = x²eˣ, dv = dx'],['u = eˣ, dv = x² dx','u = x², dv = eˣ dx','u = x²eˣ, dv = dx']),answer:1,
+ feedback:pair(['This increases the polynomial degree. Try differentiating the factor that gets simpler instead.','Yes. Differentiating x² reduces its degree; integrating eˣ does not complicate it. Predict how many rounds you will need.','This is valid but does not simplify the task. Split the product so differentiating u reduces its complexity.'],['Esto aumenta el grado del polinomio. Prueba a derivar el factor que se simplifica.','Sí. Derivar x² reduce su grado; integrar eˣ no lo complica. Predice cuántas rondas necesitarás.','Es válido, pero no simplifica el problema. Separa el producto para que derivar u reduzca su complejidad.'])
+},{
+ id:'partial-fractions',title:pair('Decompose a rational function','Descomponer una función racional'),difficulty:'Hard',original:wrap(name('I')+eq+integral(rational)),condition:'',
+ domain:pair('Valid on each interval excluding x = −2 and x = 1. The constant may differ between intervals.','Válida en cada intervalo que excluya x = −2 y x = 1. La constante puede ser distinta en cada intervalo.'),
+ steps:[
+  {text:pair('Factor the denominator first.','Primero factorizamos el denominador.'),details:pair(['Find two numbers whose product is −2 and whose sum is 1: −1 and 2.','Thus x² + x − 2 = (x − 1)(x + 2). The numerator degree is smaller, so polynomial division is unnecessary.'],['Buscamos dos números cuyo producto sea −2 y cuya suma sea 1: −1 y 2.','Así, x² + x − 2 = (x − 1)(x + 2). El numerador tiene menor grado, así que no hace falta dividir polinomios.']),hint:pair('For a rational integral, compare degrees, then factor the denominator. Distinct linear factors suggest partial fractions.','En una integral racional, compara los grados y factoriza el denominador. Los factores lineales distintos sugieren fracciones parciales.'),operation:pair('Factor x² + x − 2','Factorizar x² + x − 2')},
+  {text:pair('Split into two simpler fractions.','Separamos en dos fracciones más simples.'),details:pair(['Write A/(x − 1) + B/(x + 2), with a constant numerator for each linear factor.','Multiply by (x − 1)(x + 2) to obtain the polynomial identity 2x + 3 = A(x + 2) + B(x − 1).'],['Escribimos A/(x − 1) + B/(x + 2), con un numerador constante para cada factor lineal.','Multiplicamos por (x − 1)(x + 2) para obtener la identidad polinómica 2x + 3 = A(x + 2) + B(x − 1).']),hint:pair('Match one unknown numerator to each factor. Clearing denominators turns the problem into ordinary algebra.','Asigna un numerador desconocido a cada factor. Eliminar denominadores convierte el problema en álgebra.'),operation:pair('Introduce A and B','Introducir A y B')},
+  {text:pair('Choose x values that eliminate an unknown.','Elegimos valores de x que eliminen una incógnita.'),details:pair(['In the polynomial identity, x = 1 gives 5 = 3A; x = −2 gives −1 = −3B.','Therefore A = 5/3 and B = 1/3. These substitutions are valid in the polynomial identity, not in the original undefined fractions.'],['En la identidad polinómica, x = 1 da 5 = 3A; x = −2 da −1 = −3B.','Por tanto, A = 5/3 y B = 1/3. Estas sustituciones son válidas en la identidad polinómica, no en las fracciones originales indefinidas.']),hint:pair('Use the roots of the denominator only after clearing it. Each root makes one term disappear.','Usa las raíces del denominador solo después de eliminarlo. Cada raíz anula uno de los términos.'),operation:pair('Solve 5 = 3A, −1 = −3B','Resolver 5 = 3A, −1 = −3B')},
+  {text:pair('Integrate each fraction separately.','Integramos cada fracción por separado.'),details:pair(['Use linearity to move 5/3 and 1/3 outside their integrals.','Each integral is now of the form ∫dx/(x − a), whose antiderivative is ln|x − a|.'],['Usamos la linealidad para sacar 5/3 y 1/3 de sus integrales.','Cada integral tiene ahora la forma ∫dx/(x − a), cuya primitiva es ln|x − a|.']),hint:pair('Recognize the logarithm pattern: a linear denominator and its derivative, 1, in the numerator.','Reconoce el patrón del logaritmo: un denominador lineal y su derivada, 1, en el numerador.'),operation:pair('Substitute A and B; split integral','Sustituir A y B; separar la integral')},
+  {text:pair('Keep absolute values and add the constant.','Mantenemos los valores absolutos y añadimos la constante.'),details:pair(['The result is (5/3)ln|x − 1| + (1/3)ln|x + 2| + C.','Differentiating gives 5/[3(x − 1)] + 1/[3(x + 2)]. Combining them recovers (2x + 3)/(x² + x − 2).'],['El resultado es (5/3)ln|x − 1| + (1/3)ln|x + 2| + C.','Al derivar obtenemos 5/[3(x − 1)] + 1/[3(x + 2)]. Al sumarlas recuperamos (2x + 3)/(x² + x − 2).']),hint:pair('Absolute values preserve validity on negative as well as positive intervals. Always exclude the original poles.','Los valores absolutos mantienen la validez en intervalos negativos y positivos. Excluye siempre los polos originales.'),operation:pair('Use ∫dx/(x − a) = ln|x − a|','Usar ∫dx/(x − a) = ln|x − a|')}
+ ].map((step,i)=>({...step,formula:hardFractions[i]})),
+ question:pair('What should you inspect before choosing an integration technique?','¿Qué debes examinar antes de elegir una técnica?'),choices:pair(['Expand the denominator into more terms','Integrate numerator and denominator separately','Compare degrees and factor the denominator'],['Desarrollar el denominador en más términos','Integrar numerador y denominador por separado','Comparar grados y factorizar el denominador']),answer:2,
+ feedback:pair(['The denominator is already expanded. Factoring reveals simpler fractions you can integrate.','Integration does not distribute over a quotient. Factor the denominator to look for partial fractions.','Exactly. The fraction is proper and has distinct linear factors. Next, try finding A and B without expanding everything.'],['El denominador ya está desarrollado. Factorizar revela fracciones más simples que puedes integrar.','La integración no se distribuye sobre un cociente. Factoriza el denominador para buscar fracciones parciales.','Exacto. La fracción es propia y tiene factores lineales distintos. Después, intenta hallar A y B sin desarrollarlo todo.'])
+}];
+
+let lang='en';
+let activeIndex=0;
+let levels=[];
+const cache=new Map();
+const t=value=>value[lang];
+const currentExercise=()=>exercises[activeIndex];
+const labels={
+ en:{list:'☷  Problem list',topic:'Antiderivatives',Medium:'Medium',Hard:'Hard',practice:'Before you look: choose the first move',support:'Support',concise:'On demand',guided:'Show pattern hints',hint:'What to notice',replay:'Hover to replay this step',replayAction:'Replay step',footer:'Hover over black text for 0.5 s to go deeper. Hover over green math to replay the transformation. You can also tap or use Enter. On small screens, scroll a formula sideways if needed.'},
+ es:{list:'☷  Lista de ejercicios',topic:'Primitivas',Medium:'Medio',Hard:'Difícil',practice:'Antes de mirar: elige el primer paso',support:'Ayuda',concise:'A demanda',guided:'Mostrar pistas',hint:'En qué fijarte',replay:'Pasa el cursor para repetir el paso',replayAction:'Repetir paso',footer:'Pasa el cursor sobre el texto negro durante 0,5 s para ampliar. Pásalo sobre las fórmulas verdes para repetir la transformación. También puedes pulsar o usar Intro. En pantallas pequeñas, desplaza una fórmula horizontalmente si hace falta.'}
+};
+function exerciseURL(index){
+ const url=new URL(location.href);
+ url.searchParams.set('exercise',exercises[index].id);
+ return url.pathname+url.search+url.hash;
+}
+function readRoute(){
+ const id=new URLSearchParams(location.search).get('exercise');
+ activeIndex=Math.max(0,exercises.findIndex(ex=>ex.id===id));
+ render();
+}
+function navigate(index){
+ history.pushState({},'',exerciseURL(index));
+ activeIndex=index;
+ render();
+ window.scrollTo({top:0,behavior:'instant'});
+ document.getElementById('problemMenu').open=false;
+}
+async function getText(exercise,index,level,language){
+ const step=exercise.steps[index];
+ const fallback=step.details[language][level-1];
+ if(!proxyEndpoint)return fallback;
+ const key=`${exercise.id}:${language}:${index}:${level}`;
+ if(cache.has(key))return cache.get(key);
+ try{
+  const response=await fetch(proxyEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(4000),body:JSON.stringify({model:'local',temperature:0.2,messages:[{role:'system',content:`You are a concise calculus tutor. Answer only in ${language==='es'?'Spanish':'English'}. Return one short explanation, no markdown. Preserve the mathematical claims supplied.`},{role:'user',content:`Exercise: ${exercise.title[language]}. Current step: ${step.text[language]}. Explain this detail at depth ${level}: ${fallback}. Pattern to notice: ${step.hint[language]}.`} ]})});
+  if(!response.ok)throw new Error('Proxy unavailable');
+  const data=await response.json();
+  const text=data?.choices?.[0]?.message?.content;
+  if(typeof text!=='string'||!text.trim())throw new Error('Empty response');
+  cache.set(key,text.trim());return text.trim();
+ }catch{return fallback;}
+}
+async function deepen(el,index){
+ const exercise=currentExercise(), step=exercise.steps[index], language=lang;
+ if(!el.isConnected||levels[index]>=step.details[language].length)return;
+ const next=++levels[index];
+ el.classList.remove('waiting');
+ el.textContent=step.details[language][next-1];
+ el.classList.add('revealing');
+ el.dataset.complete=String(next===step.details[language].length);
+ setTimeout(()=>el.classList.remove('revealing'),300);
+ const text=await getText(exercise,index,next,language);
+ if(el.isConnected&&currentExercise()===exercise&&lang===language&&levels[index]===next)el.textContent=text;
+}
+function addInteractions(el,index){
+ let timer;
+ const cancel=()=>{clearTimeout(timer);el.classList.remove('waiting')};
+ el.addEventListener('mouseenter',()=>{
+  cancel();
+  if(levels[index]>=currentExercise().steps[index].details[lang].length)return;
+  el.classList.add('waiting');timer=setTimeout(()=>deepen(el,index),HOVER_DELAY);
+ });
+ el.addEventListener('mouseleave',cancel);
+ el.addEventListener('blur',cancel);
+ el.addEventListener('click',()=>{cancel();deepen(el,index)});
+ el.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();cancel();deepen(el,index)}});
+}
+function attachReplay(panel,step){
+ let timer;
+ const caption=panel.querySelector('.formula-caption');
+ const reset=()=>{clearTimeout(timer);panel.classList.remove('playing');caption.textContent=labels[lang].replay};
+ const play=()=>{
+  reset();
+  caption.textContent=t(step.operation);
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  void panel.offsetWidth;
+  panel.classList.add('playing');
+  timer=setTimeout(()=>{panel.classList.remove('playing');caption.textContent=labels[lang].replay},2200);
+ };
+ panel.addEventListener('mouseenter',play);
+ panel.addEventListener('mouseleave',reset);
+ panel.addEventListener('blur',reset);
+ panel.addEventListener('click',play);
+}
+function render(){
+ const exercise=currentExercise(),l=labels[lang];
+ levels=exercise.steps.map(()=>0);
+ document.documentElement.lang=lang;
+ document.title=`${t(exercise.title)} · Matemáticas en Capas`;
+ document.getElementById('enBtn').classList.toggle('active',lang==='en');
+ document.getElementById('esBtn').classList.toggle('active',lang==='es');
+ document.getElementById('enBtn').setAttribute('aria-pressed',String(lang==='en'));
+ document.getElementById('esBtn').setAttribute('aria-pressed',String(lang==='es'));
+ document.getElementById('problemListLabel').textContent=l.list;
+ document.getElementById('navCount').textContent=`${activeIndex+1} / ${exercises.length}`;
+ const links=document.getElementById('problemLinks');links.replaceChildren();
+ exercises.forEach((item,index)=>{
+  const a=document.createElement('a');a.href=exerciseURL(index);
+  const title=document.createElement('span');title.textContent=`${index+1}. ${t(item.title)}`;
+  const difficulty=document.createElement('small');difficulty.textContent=l[item.difficulty];a.append(title,difficulty);
+  if(index===activeIndex)a.setAttribute('aria-current','page');
+  a.addEventListener('click',event=>{if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();navigate(index)});links.append(a);
+ });
+ for(const [id,index] of [['prevExercise',activeIndex-1],['nextExercise',activeIndex+1]]){
+  const a=document.getElementById(id),valid=index>=0&&index<exercises.length;
+  a.setAttribute('aria-disabled',String(!valid));a.tabIndex=valid?0:-1;
+  a.setAttribute('aria-label',id==='prevExercise'?(lang==='es'?'Ejercicio anterior':'Previous exercise'):(lang==='es'?'Ejercicio siguiente':'Next exercise'));
+  if(valid)a.href=exerciseURL(index);else a.removeAttribute('href');
+  a.onclick=event=>{if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();if(valid)navigate(index)};
+ }
+ document.getElementById('topicTag').textContent=l.topic;
+ const difficulty=document.getElementById('difficultyTag');difficulty.textContent=l[exercise.difficulty];difficulty.classList.toggle('hard',exercise.difficulty==='Hard');
+ document.getElementById('problemName').textContent=`${activeIndex+1}. ${t(exercise.title)}`;
+ document.getElementById('originalLabel').textContent=UI[lang].originalLabel;
+ document.getElementById('originalEquation').innerHTML=exercise.original+exercise.condition;
+ document.getElementById('practiceLabel').textContent=l.practice;
+ document.getElementById('practiceQuestion').textContent=t(exercise.question);
+ document.getElementById('practiceFeedback').textContent='';
+ document.getElementById('practice').open=false;
+ const choices=document.getElementById('choices');choices.replaceChildren();
+ t(exercise.choices).forEach((choice,index)=>{
+  const button=document.createElement('button');button.type='button';button.textContent=choice;button.setAttribute('aria-pressed','false');
+  button.addEventListener('click',()=>{
+   choices.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+   document.getElementById('practiceFeedback').textContent=t(exercise.feedback)[index];
+   if(index!==exercise.answer){document.getElementById('support').value='guided';applySupport()}
+  });choices.append(button);
+ });
+ document.getElementById('supportLabel').textContent=l.support;
+ document.querySelector('#support option[value="concise"]').textContent=l.concise;
+ document.querySelector('#support option[value="guided"]').textContent=l.guided;
+ const root=document.getElementById('explanation');root.replaceChildren();root.setAttribute('aria-label',lang==='es'?'Pasos de la solución':'Solution steps');
+ exercise.steps.forEach((step,index)=>{
+  const row=document.createElement('li');row.className='sentence';
+  const copy=document.createElement('div');copy.className='sentence-copy';
+  const number=document.createElement('span');number.className='step-number';number.textContent=index+1;number.setAttribute('aria-hidden','true');
+  const exp=document.createElement('span');exp.className='expand';exp.tabIndex=0;exp.setAttribute('role','button');exp.setAttribute('aria-description',lang==='es'?'Pulsa para mostrar más detalles':'Press to show more detail');exp.textContent=t(step.text);
+  const hint=document.createElement('details');hint.className='reflex';
+  const summary=document.createElement('summary');summary.textContent=l.hint;
+  const hintText=document.createElement('p');hintText.textContent=t(step.hint);hint.append(summary,hintText);copy.append(number,exp,hint);
+  const panel=document.createElement('button');panel.type='button';panel.className='inline-formula';panel.setAttribute('aria-label',`${l.replayAction} ${index+1}: ${t(step.operation)}`);
+  const previous=index===0?exercise.original:exercise.steps[index-1].formula;
+  panel.innerHTML=`<span class="formula-viewport"><span class="formula-frame formula-from" aria-hidden="true">${previous}</span><span class="formula-frame formula-to">${step.formula}</span></span><span class="formula-caption">${l.replay}</span>`;
+  // Keep the formula itself readable to assistive technology, in addition to its replay action.
+  panel.setAttribute('aria-describedby',`formula-${index}`);panel.querySelector('.formula-to').id=`formula-${index}`;
+  row.append(copy,panel);root.append(row);addInteractions(exp,index);attachReplay(panel,step);
+ });
+ document.getElementById('exerciseDomain').textContent=t(exercise.domain);
+ document.getElementById('footer').textContent=l.footer;
+ applySupport();
+}
+function applySupport(){document.querySelectorAll('.reflex').forEach(hint=>hint.open=document.getElementById('support').value==='guided')}
+document.getElementById('support').addEventListener('change',applySupport);
+document.getElementById('enBtn').addEventListener('click',()=>{lang='en';render()});
+document.getElementById('esBtn').addEventListener('click',()=>{lang='es';render()});
+document.addEventListener('keydown',event=>{if(event.key==='Escape')document.getElementById('problemMenu').open=false});
+document.addEventListener('click',event=>{const menu=document.getElementById('problemMenu');if(!menu.contains(event.target))menu.open=false});
+window.addEventListener('popstate',readRoute);
+readRoute();
+</script>
+</body>
+</html>
