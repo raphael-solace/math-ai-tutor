@@ -85,7 +85,10 @@ math{font-family:"Times New Roman",Georgia,serif}
 .formula-stage{padding:40px 0 38px}
 .study-tools{display:flex;align-items:start;justify-content:space-between;gap:24px;margin:0 0 24px;font-family:ui-sans-serif,system-ui,sans-serif}
 .practice{max-width:720px;flex:1;border-left:2px solid #DCE5FF;padding:8px 16px;font-size:13px;color:#657083}
-.practice summary{cursor:pointer;color:var(--ink);font-weight:500}
+.practice h2{margin:0;color:var(--ink);font:600 13px/1.5 ui-sans-serif,system-ui,sans-serif}
+#solution[hidden]{display:none}
+#solution.revealed{animation:solutionReveal .28s ease-out}
+@keyframes solutionReveal{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .practice-body{padding:12px 0 2px}
 .practice-question{margin:0 0 12px;color:var(--ink);line-height:1.6}
 .choices{display:flex;flex-wrap:wrap;gap:8px}
@@ -134,13 +137,15 @@ math{font-family:"Times New Roman",Georgia,serif}
     </div>
   </div>
   <div class="study-tools">
-    <details class="practice" id="practice">
-      <summary id="practiceLabel">Before you look: choose the first move</summary>
+    <section class="practice" id="practice" aria-labelledby="practiceLabel">
+      <h2 id="practiceLabel">Choose the first move</h2>
       <div class="practice-body"><p class="practice-question" id="practiceQuestion"></p><div class="choices" id="choices"></div><p class="practice-feedback" id="practiceFeedback" aria-live="polite"></p></div>
-    </details>
+    </section>
   </div>
+  <section id="solution" hidden>
   <ol class="explanation" id="explanation" aria-label="Solution steps"></ol>
   <p class="exercise-domain" id="exerciseDomain"></p>
+  </section>
 </main>
 
 <script src="equation-motion.js"></script>
@@ -305,8 +310,8 @@ const cache=new Map();
 const t=value=>value[lang];
 const currentExercise=()=>exercises[activeIndex];
 const labels={
- en:{list:'☷  Problem list',topic:'Antiderivatives',Medium:'Medium',Hard:'Hard',practice:'Before you look: choose the first move',support:'Support',concise:'On demand',guided:'Show pattern hints',hint:'What to notice',replay:'Hover to replay this step',replayAction:'Replay step',footer:'Hover over black text for 0.5 s to go deeper. Hover over green math to replay the transformation. You can also tap or use Enter. On small screens, scroll a formula sideways if needed.'},
- es:{list:'☷  Lista de ejercicios',topic:'Primitivas',Medium:'Medio',Hard:'Difícil',practice:'Antes de mirar: elige el primer paso',support:'Ayuda',concise:'A demanda',guided:'Mostrar pistas',hint:'En qué fijarte',replay:'Pasa el cursor para repetir el paso',replayAction:'Repetir paso',footer:'Pasa el cursor sobre el texto negro durante 0,5 s para ampliar. Pásalo sobre las fórmulas verdes para repetir la transformación. También puedes pulsar o usar Intro. En pantallas pequeñas, desplaza una fórmula horizontalmente si hace falta.'}
+ en:{list:'☷  Problem list',topic:'Antiderivatives',Medium:'Medium',Hard:'Hard',practice:'Choose the first move',support:'Support',concise:'On demand',guided:'Show pattern hints',hint:'What to notice',replay:'Hover to replay this step',replayAction:'Replay step',footer:'Hover over black text for 0.5 s to go deeper. Hover over green math to replay the transformation. You can also tap or use Enter. On small screens, scroll a formula sideways if needed.'},
+ es:{list:'☷  Lista de ejercicios',topic:'Primitivas',Medium:'Medio',Hard:'Difícil',practice:'Elige el primer paso',support:'Ayuda',concise:'A demanda',guided:'Mostrar pistas',hint:'En qué fijarte',replay:'Pasa el cursor para repetir el paso',replayAction:'Repetir paso',footer:'Pasa el cursor sobre el texto negro durante 0,5 s para ampliar. Pásalo sobre las fórmulas verdes para repetir la transformación. También puedes pulsar o usar Intro. En pantallas pequeñas, desplaza una fórmula horizontalmente si hace falta.'}
 };
 function exerciseURL(index){
  const url=new URL(location.href);
@@ -365,6 +370,7 @@ function addInteractions(el,index){
  el.addEventListener('click',()=>{cancel();deepen(el,index)});
  el.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();cancel();deepen(el,index)}});
 }
+const answers=new Map();
 let replayCleanups=[];
 function render(){
  replayCleanups.forEach(cleanup=>cleanup());replayCleanups=[];
@@ -398,14 +404,19 @@ function render(){
  document.getElementById('originalEquation').innerHTML=exercise.original+exercise.condition;
  document.getElementById('practiceLabel').textContent=l.practice;
  document.getElementById('practiceQuestion').textContent=t(exercise.question);
- document.getElementById('practiceFeedback').textContent='';
- document.getElementById('practice').open=false;
+ const selectedAnswer=answers.get(exercise.id);
+ const solution=document.getElementById('solution');
+ solution.classList.remove('revealed');
+ solution.hidden=selectedAnswer===undefined;
+ document.getElementById('practiceFeedback').textContent=selectedAnswer===undefined?'':t(exercise.feedback)[selectedAnswer];
  const choices=document.getElementById('choices');choices.replaceChildren();
  t(exercise.choices).forEach((choice,index)=>{
-  const button=document.createElement('button');button.type='button';button.textContent=choice;button.setAttribute('aria-pressed','false');
+  const button=document.createElement('button');button.type='button';button.textContent=choice;button.setAttribute('aria-pressed',String(selectedAnswer===index));button.setAttribute('aria-controls','solution');
   button.addEventListener('click',()=>{
    choices.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+   answers.set(exercise.id,index);
    document.getElementById('practiceFeedback').textContent=t(exercise.feedback)[index];
+   if(solution.hidden){solution.hidden=false;solution.classList.add('revealed')}
   });choices.append(button);
  });
  const root=document.getElementById('explanation');root.replaceChildren();root.setAttribute('aria-label',lang==='es'?'Pasos de la solución':'Solution steps');
